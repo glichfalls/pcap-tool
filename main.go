@@ -12,14 +12,14 @@ import (
 	"strings"
 )
 
-//go:embed dist/*
+//go:embed public/*
 var app embed.FS
 
 func setupRouter() *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 
-	dist := utils.EmbedFolder(app, "dist")
+	dist := utils.EmbedFolder(app, "public")
 	staticServer := static.Serve("/", dist)
 
 	r.Use(staticServer)

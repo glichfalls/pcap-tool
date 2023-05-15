@@ -1,11 +1,13 @@
 rm -rf bin
-rm -rf dist
+rm -rf public
 
 cd ui
-npx nuxi build
+npx nuxi generate
 
 cd ..
-mkdir dist
-cp -r ui/dist/* dist
+mkdir public
+cp -r ui/.output/public/* public
 
 go build -o bin/main
+
+cp -r config bin
