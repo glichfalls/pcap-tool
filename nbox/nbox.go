@@ -4,15 +4,29 @@ import (
 	"bytes"
 	"fmt"
 	"golang.org/x/crypto/ssh"
+	"golang.org/x/crypto/ssh/knownhosts"
 	"log"
 	"main/utils"
+	"net"
 )
 
 func sshConnect(config *utils.NboxConfig) *ssh.Client {
+	hostKeyCallback, err := knownhosts.New(".ssh/known_hosts")
+	if err != nil {
+		fmt.Println(err)
+		return nil
+	}
 	sshConfig := &ssh.ClientConfig{
 		User: config.Username,
 		Auth: []ssh.AuthMethod{
 			ssh.Password(config.Password),
+		},
+		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
+			addr := []string{hostname}
+			line := knownhosts.Line(addr, key)
+			fmt.Println(line)
+
+			return hostKeyCallback(hostname, remote, key)
 		},
 	}
 	con, err := ssh.Dial("tcp", config.Host, sshConfig)

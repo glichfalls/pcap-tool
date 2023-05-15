@@ -1,5 +1,5 @@
 {
-  "host": "100.125.230.39",
+  "host": "100.125.230.39:22",
   "username": "nbox",
   "password": "nbox",
   "interface": "nt:0"

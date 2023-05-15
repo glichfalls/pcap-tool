@@ -1,4 +1,4 @@
-rm -rf bin
+rm -rf tool
 rm -rf public
 
 cd ui
@@ -8,6 +8,7 @@ cd ..
 mkdir public
 cp -r ui/.output/public/* public
 
-go build -o bin/main
+go build -o tool/main
 
-cp -r config bin
+cp -r .ssh tool
+cp -r config tool
