@@ -1,1 +1,11 @@
 .idea
+ui/node_modules
+ui/.nuxt
+ui/.nitro
+ui/.cache
+ui/.output
+ui/dist
+ui/.idea/
+dist
+bin
+*.log*
