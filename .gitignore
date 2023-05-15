@@ -6,6 +6,4 @@ ui/.cache
 ui/.output
 ui/dist
 ui/.idea/
-dist
-bin
 *.log*
