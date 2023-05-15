@@ -59,12 +59,32 @@ func setupRouter() *gin.Engine {
 			broker.UpdateFilter(filters)
 		})
 
+		apiGroup.POST("/measure", func(context *gin.Context) {
+
+		})
+
 		apiGroup.POST("/recording/start", func(context *gin.Context) {
-			nbox.StartRecording()
+			if nbox.StartRecording() {
+				context.JSON(200, gin.H{
+					"status": "ok",
+				})
+			} else {
+				context.JSON(500, gin.H{
+					"status": "failed",
+				})
+			}
 		})
 
 		apiGroup.POST("/recording/replay", func(context *gin.Context) {
-			nbox.ReplayTraffic()
+			if nbox.ReplayTraffic() {
+				context.JSON(200, gin.H{
+					"status": "ok",
+				})
+			} else {
+				context.JSON(500, gin.H{
+					"status": "failed",
+				})
+			}
 		})
 	}
 

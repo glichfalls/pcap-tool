@@ -4,30 +4,17 @@ import (
 	"bytes"
 	"fmt"
 	"golang.org/x/crypto/ssh"
-	"golang.org/x/crypto/ssh/knownhosts"
 	"log"
 	"main/utils"
-	"net"
 )
 
 func sshConnect(config *utils.NboxConfig) *ssh.Client {
-	hostKeyCallback, err := knownhosts.New(".ssh/known_hosts")
-	if err != nil {
-		fmt.Println(err)
-		return nil
-	}
 	sshConfig := &ssh.ClientConfig{
 		User: config.Username,
 		Auth: []ssh.AuthMethod{
 			ssh.Password(config.Password),
 		},
-		HostKeyCallback: func(hostname string, remote net.Addr, key ssh.PublicKey) error {
-			addr := []string{hostname}
-			line := knownhosts.Line(addr, key)
-			fmt.Println(line)
-
-			return hostKeyCallback(hostname, remote, key)
-		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 	con, err := ssh.Dial("tcp", config.Host, sshConfig)
 	if err != nil {
@@ -71,12 +58,14 @@ func StartRecording() bool {
 	if session == nil {
 		return false
 	}
-	command := fmt.Sprintf("n2disk -i %s -o /tmp/recording", config.Interface)
+	command := fmt.Sprintf("n2disk -i %s -o /tmp/recording -u %s -I -A /tmp/recording", config.Username, config.Interface)
 	command = getSudoCommand(command, config.Password)
-	if output := runCommand(session, command); output == nil {
-		return false
+	output := runCommand(session, command)
+	err := session.Close()
+	if err != nil {
+		fmt.Println(err)
 	}
-	return true
+	return output != nil
 }
 
 func ReplayTraffic() bool {
@@ -86,8 +75,14 @@ func ReplayTraffic() bool {
 		return false
 	}
 	command := getSudoCommand("disk2n -i enp216s0f0 -f /tmp/test.pcap", config.Password)
-	if output := runCommand(session, command); output == nil {
-		return false
+	output := runCommand(session, command)
+	err := session.Close()
+	if err != nil {
+		fmt.Println(err)
 	}
-	return true
+	return output != nil
+}
+
+func downloadOutput() {
+
 }
