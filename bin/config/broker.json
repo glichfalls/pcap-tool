@@ -1,9 +1,7 @@
 {
   "filter": "F1",
-  "auth": {
-    "host": "100.125.230.39",
-    "port": "8000",
-    "username": "admin",
-    "password": "admin"
-  }
+  "host": "100.125.230.41",
+  "port": "8000",
+  "username": "admin",
+  "password": "admin"
 }

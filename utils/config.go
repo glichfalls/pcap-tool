@@ -8,16 +8,17 @@ import (
 )
 
 type NboxConfig struct {
-	Host     string `json:"host"`
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Host      string `json:"host"`
+	Username  string `json:"username"`
+	Password  string `json:"password"`
+	Interface string `json:"interface"`
 }
 
 type BrokerConfig struct {
-	Host     string `json:"auth:host"`
-	Port     string `json:"auth:port"`
-	Username string `json:"auth:username"`
-	Password string `json:"auth:password"`
+	Host     string `json:"host"`
+	Port     string `json:"port"`
+	Username string `json:"username"`
+	Password string `json:"password"`
 	Filter   string `json:"filter"`
 }
 
@@ -27,6 +28,7 @@ func readJson(name string) ([]byte, error) {
 		jsonFile, err := os.Open(fileName)
 		if err != nil {
 			fmt.Println(err)
+			return nil, err
 		}
 		defer jsonFile.Close()
 		return io.ReadAll(jsonFile)
@@ -36,14 +38,20 @@ func readJson(name string) ([]byte, error) {
 	}
 }
 
-func loadNboxConfig() *NboxConfig {
+func LoadNboxConfig() *NboxConfig {
 	var config NboxConfig
-	bytes, _ := readJson("nbox")
-	if bytes == nil {
+	bytes, err := readJson("nbox")
+	if err != nil {
+		fmt.Println(err)
 		return nil
 	}
-	err := json.Unmarshal(bytes, &config)
+	if bytes == nil {
+		fmt.Println("config is empty")
+		return nil
+	}
+	err = json.Unmarshal(bytes, &config)
 	if err != nil {
+		fmt.Println(err)
 		return nil
 	}
 	return &config
@@ -51,12 +59,18 @@ func loadNboxConfig() *NboxConfig {
 
 func LoadPacketBrokerConfig() *BrokerConfig {
 	var config BrokerConfig
-	bytes, _ := readJson("broker")
-	if bytes == nil {
+	bytes, err := readJson("broker")
+	if err != nil {
+		fmt.Println(err)
 		return nil
 	}
-	err := json.Unmarshal(bytes, &config)
+	if bytes == nil {
+		fmt.Println("config is empty")
+		return nil
+	}
+	err = json.Unmarshal(bytes, &config)
 	if err != nil {
+		fmt.Println(err)
 		return nil
 	}
 	return &config
