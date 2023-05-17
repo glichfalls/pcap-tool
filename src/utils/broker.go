@@ -30,30 +30,10 @@ func basicAuth(username, password string) string {
 	return base64.StdEncoding.EncodeToString([]byte(auth))
 }
 
-func createGetRequest(uri string) *http.Request {
+func createRequest(method string, uri string, body io.Reader) *http.Request {
 	config := LoadPacketBrokerConfig()
 	url := fmt.Sprintf("https://%s:%s/%s", config.Host, config.Port, uri)
-	request, _ := http.NewRequest("GET", url, nil)
-	request.Header.Add("Authorization", "Basic "+basicAuth(config.Username, config.Password))
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Accept", "application/json")
-	return request
-}
-
-func createPostRequest(uri string, body io.Reader) *http.Request {
-	config := LoadPacketBrokerConfig()
-	url := fmt.Sprintf("https://%s:%s/%s", config.Host, config.Port, uri)
-	request, _ := http.NewRequest("POST", url, body)
-	request.Header.Add("Authorization", "Basic "+basicAuth(config.Username, config.Password))
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("Accept", "application/json")
-	return request
-}
-
-func createPutRequest(uri string, body io.Reader) *http.Request {
-	config := LoadPacketBrokerConfig()
-	url := fmt.Sprintf("https://%s:%s/%s", config.Host, config.Port, uri)
-	request, _ := http.NewRequest("PUT", url, body)
+	request, _ := http.NewRequest(method, url, body)
 	request.Header.Add("Authorization", "Basic "+basicAuth(config.Username, config.Password))
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("Accept", "application/json")
@@ -86,15 +66,15 @@ func sendRequest(request *http.Request) interface{} {
 }
 
 func getJson(uri string) interface{} {
-	return sendRequest(createGetRequest(uri))
+	return sendRequest(createRequest("GET", uri, nil))
 }
 
 func postJson(uri string, body io.Reader) interface{} {
-	return sendRequest(createPostRequest(uri, body))
+	return sendRequest(createRequest("POST", uri, body))
 }
 
 func putJson(uri string, body io.Reader) interface{} {
-	return sendRequest(createPutRequest(uri, body))
+	return sendRequest(createRequest("PUT", uri, body))
 }
 
 func UpdateFilter(filters Filters) interface{} {
