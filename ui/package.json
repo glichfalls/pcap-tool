@@ -13,6 +13,7 @@
     "@formkit/themes": "^0.16.5",
     "@nuxtjs/tailwindcss": "^6.6.7",
     "@pinia/nuxt": "^0.4.10",
+    "date-fns": "^2.30.0",
     "flowbite": "^1.6.5",
     "flowbite-vue": "^0.0.10",
     "pinia": "^2.0.36",
@@ -22,7 +23,9 @@
     "@nuxt/types": "^2.16.3",
     "@nuxtjs/eslint-config-typescript": "^12.0.0",
     "@types/node": "^18",
+    "@vitejs/plugin-legacy": "^4.0.3",
     "autoprefixer": "^10.4.14",
+    "esbuild-plugin-browserslist": "^0.7.0",
     "eslint": "^8.40.0",
     "nuxt": "^3.4.3",
     "nuxt-icon": "^0.4.0",
@@ -30,6 +33,7 @@
     "sass": "^1.62.1",
     "sass-loader": "^13.2.2",
     "tailwindcss": "^3.3.2",
+    "terser": "^5.17.3",
     "typescript": "^5.0.4",
     "vue": "^3.2.47"
   }
