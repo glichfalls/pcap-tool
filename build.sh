@@ -9,4 +9,4 @@ cp -r ../ui/.output/public/* public
 go build -o ../tool/main
 
 cd ..
-cp -r config tool
+cp -r src/config tool

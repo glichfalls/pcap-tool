@@ -13,13 +13,16 @@ import (
 )
 
 //go:embed public/*
-var app embed.FS
+var frontend embed.FS
 
 func setupRouter() *gin.Engine {
-	gin.SetMode(gin.ReleaseMode)
-	r := gin.Default()
 
-	r.Use(cors.New(cors.Config{
+	// setup router
+	gin.SetMode(gin.ReleaseMode)
+	router := gin.Default()
+
+	// allow CORS
+	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"*"},
 		AllowMethods:     []string{"OPTIONS", "GET", "POST", "PUT", "DELETE"},
 		AllowHeaders:     []string{"*"},
@@ -28,11 +31,13 @@ func setupRouter() *gin.Engine {
 		MaxAge:           12 * time.Hour,
 	}))
 
-	dist := utils.EmbedFolder(app, "public")
+	// embed frontend build in executable
+	dist := utils.EmbedFolder(frontend, "public")
 	staticServer := static.Serve("/", dist)
+	router.Use(staticServer)
 
-	r.Use(staticServer)
-	r.NoRoute(func(c *gin.Context) {
+	// re-route all requests not starting with /api to the frontend
+	router.NoRoute(func(c *gin.Context) {
 		if c.Request.Method == http.MethodGet &&
 			!strings.ContainsRune(c.Request.URL.Path, '.') &&
 			!strings.HasPrefix(c.Request.URL.Path, "/api/") {
@@ -41,7 +46,8 @@ func setupRouter() *gin.Engine {
 		}
 	})
 
-	apiGroup := r.Group("/api")
+	// api routes
+	apiGroup := router.Group("/api")
 	{
 		apiGroup.POST("/heartbeat", func(context *gin.Context) {
 			context.JSON(http.StatusOK, gin.H{
@@ -97,7 +103,7 @@ func setupRouter() *gin.Engine {
 		})
 	}
 
-	return r
+	return router
 }
 
 func main() {
