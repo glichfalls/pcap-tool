@@ -1,7 +1,7 @@
 rm -rf tool
 
 cd ui
-#npx nuxi generate
+npx nuxi generate
 
 cd ../src
 cp -r ../ui/.output/public/* public
