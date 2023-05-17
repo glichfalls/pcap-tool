@@ -2,59 +2,106 @@ export type PacketBrokerFilter = {
   name: string;
   description: string;
   mode: string;
-  criteria: {
+  criteria?: {
     logical_operation: string;
-    layer4_dst_port: {
+    layer4_dst_port?: {
       port: string;
-    };
-    vlan: {
+    }[];
+    vlan?: {
       vlan_id: string;
-    };
+    }[];
   }
+};
+
+export type Filter = {
+  name: string;
+  description: string;
+  ports: string;
+  vlan: string;
 };
 
 export const usePacketBroker = () => {
 
   const { get, post, put } = useHttp();
 
-  const getFilter = async (): Promise<PacketBrokerFilter|null> => {
+  const filter = useState<Filter|null>('filter', () => null);
+
+  const reloadFilter = async (): Promise<void> => {
     try {
-      return await get('/api/filter');
+      const data= await get<PacketBrokerFilter>('/api/filter');
+      filter.value = {
+        name: data?.name || '',
+        description: data?.description || '',
+        ports: data?.criteria?.layer4_dst_port?.[0]?.port || '',
+        vlan: data?.criteria?.vlan?.[0]?.vlan_id || '',
+      };
     } catch (error) {
-      console.error(error);
-      return null;
+      filter.value = {
+        name: '',
+        description: '',
+        ports: '',
+        vlan: '',
+      };
     }
   }
 
-  const updateFilter = async (vlan: string, ports: string) => {
-    await put('/api/filter', {
-      name: 'F2',
-      description: 'Test',
-      mode: 'PASS_BY_CRITERIA',
-      criteria: {
-        logical_operation: 'AND',
-        layer4_dst_port: {
-          port: ports,
-        },
-        vlan: {
-          vlan_id: vlan,
-        },
-      },
-    });
-    return await getFilter();
+  const updateFilter = async (data: any) => {
+    try {
+      const payload: PacketBrokerFilter = {
+        name: 'F2',
+        description: 'Test',
+        mode: 'PASS_BY_CRITERIA',
+      };
+      if (data.ports || data.vlan) {
+        payload.criteria = {
+          logical_operation: 'AND',
+        };
+        if (data.ports) {
+          payload.criteria = {
+            ...payload.criteria,
+            layer4_dst_port: [{
+              port: data.ports,
+            }],
+          };
+        }
+        if (data.vlan) {
+          payload.criteria = {
+            ...payload.criteria,
+            vlan: [{
+              vlan_id: data.vlan
+            }],
+          };
+        }
+      }
+      await put('/api/filter', payload);
+      await reloadFilter();
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   const measure = async () => {
-    const response: any = await post('/api/measure');
-    const stats = response?.stats_snapshot?.[0];
-    return {
-      passRate: stats?.df_current_pass_rate_bits,
-      time: stats?.stats_time,
+    try {
+      const response: any = await post('/api/measure');
+      const stats = response?.stats_snapshot?.[0];
+      return {
+        status: response !== null ? 'Operational' : 'Down',
+        passRate: stats?.df_current_pass_rate_bits,
+        time: stats?.stats_time,
+      }
+    } catch (err) {
+      console.error(err);
+      return {
+        status: 'Down',
+        passRate: null,
+        time: null,
+      }
     }
   };
 
   return {
-    getFilter,
+    filter,
+    reloadFilter,
     updateFilter,
     measure,
   };

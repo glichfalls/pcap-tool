@@ -22,10 +22,8 @@ export default defineNuxtConfig({
       apiUrl: 'http://localhost:8000',
     }
   },
+  ssr: false,
   vite: {
-    build: {
-
-    },
     plugins: [
       legacy({
         targets: ['ff <= 59'],

@@ -2,10 +2,13 @@
   <div class="container mx-auto">
     <div class="stats">
         <span v-if="isOnline" class="online">
-            API Online
+            API Operational
         </span>
         <span v-else class="offline">
-            API Offline
+            API Down
+        </span>
+        <span :class="stats && stats.status === 'Operational' ? 'online' : 'offline'">
+            Packet Broker {{ stats?.status }}
         </span>
         <span>
             Pass Rate: {{ passRate }}
@@ -28,6 +31,7 @@ const { measure } = usePacketBroker();
 
 const isOnline = ref<boolean>(false);
 const stats = ref<{
+  status: string;
   passRate: number;
   time: number;
 }>(null);
@@ -50,14 +54,14 @@ const checkFilterStats = async () => {
 }
 
 const passRate = computed(() => {
-  if (stats.value === null || stats.value.passRate === 0) {
-    return '0.0 KB';
+  if (stats.value === null || !stats.value.passRate) {
+    return '0.0 GB';
   }
   return `${stats.value.passRate / 8e+9} GB`;
 });
 
 const statsTime = computed(() => {
-  if (stats.value === null || stats.value.time === null) {
+  if (stats.value === null || !stats.value.time) {
     return '-';
   }
   return format(stats.value.time, 'dd.MM.Y hh:mm:ss');
@@ -85,7 +89,7 @@ onBeforeUnmount(() => {
   @apply flex justify-center gap-4;
 
   .offline {
-    @apply text-red-500;
+    @apply text-red-700;
   }
   .online {
     @apply text-green-500;

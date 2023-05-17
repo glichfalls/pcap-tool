@@ -16,6 +16,8 @@
     "date-fns": "^2.30.0",
     "flowbite": "^1.6.5",
     "flowbite-vue": "^0.0.10",
+    "is-cidr": "^5.0.3",
+    "is-ip": "^5.0.0",
     "pinia": "^2.0.36",
     "vue-final-modal": "^4.4.2"
   },
