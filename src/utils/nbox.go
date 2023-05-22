@@ -7,6 +7,7 @@ import (
 	"github.com/bramvdbogaerde/go-scp"
 	"golang.org/x/crypto/ssh"
 	"os"
+	"time"
 )
 
 func sshConnect(config *NboxConfig) *ssh.Client {
@@ -15,6 +16,7 @@ func sshConnect(config *NboxConfig) *ssh.Client {
 		Auth: []ssh.AuthMethod{
 			ssh.Password(config.Password),
 		},
+		Timeout:         3 * time.Second,
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
 	fmt.Println("Creating ssh connection")
@@ -59,7 +61,7 @@ func runCommand(session *ssh.Session, command string) *bytes.Buffer {
 	var output bytes.Buffer
 	session.Stdout = &output
 	fmt.Println("Running command over ssh")
-	if err := session.Run(command); err != nil {
+	if err := session.Start(command); err != nil {
 		fmt.Println(fmt.Sprintf("failed to run command over ssh session: %s", err))
 		return nil
 	}
@@ -70,9 +72,13 @@ func getSudoCommand(command string, password string) string {
 	return fmt.Sprintf("echo %s | sudo -S %s", password, command)
 }
 
+func getRecordingDirectory(config *NboxConfig) string {
+	return fmt.Sprintf("%s/recordings", config.Directory)
+}
+
 type RecordingOptions struct {
-	Duration *int32 `json:"duration"`
-	Size     *int32 `json:"size"`
+	Duration int `json:"duration"`
+	Size     int `json:"size"`
 }
 
 func StartRecording(options RecordingOptions) bool {
@@ -83,19 +89,28 @@ func StartRecording(options RecordingOptions) bool {
 	}
 	// https://www.ntop.org/guides/n2disk/usage.html
 	// https://github.com/ntop/ntopng/blob/d65bb0c1438a393bca532286a6270bbaba028c50/scripts/lua/modules/recording_utils.lua#L1015
-	command := fmt.Sprintf("n2disk -i %s -o /tmp/recording -u %s -L", config.Interface, config.Username)
-	if options.Size == nil || options.Duration == nil {
-		// if both are null, run n2disk for 10 seconds
+	command := fmt.Sprintf(
+		"nohup n2disk -i %s -o %s -u %s -P %s -L",
+		config.Interface,
+		getRecordingDirectory(config),
+		config.Username,
+		config.Directory,
+	)
+
+	if options.Size == 0 || options.Duration == 0 {
+		// if both are 0, run n2disk for 10 seconds
 		command = fmt.Sprintf("%s -t %d", command, 10)
-	}
-	if options.Size != nil {
+	} else if options.Size != 0 {
 		// [--max-file-len|-p] <len> | Max pcap file length (MBytes).
 		command = fmt.Sprintf("%s -p %d", command, options.Size)
-	}
-	if options.Duration != nil {
+	} else if options.Duration != 0 {
 		// [--max-file-duration|-t] <secs> | Max pcap file duration (sec).
 		command = fmt.Sprintf("%s -t %d", command, options.Duration)
 	}
+	// https://serverfault.com/a/36436
+	// < /dev/null > /tmp/n2disk.log 2>&1 &
+	// chat gpt says: >/dev/null 2>&1 &
+	command = fmt.Sprintf("%s >/dev/null 2>&1 &", command)
 	fmt.Println(command)
 	command = getSudoCommand(command, config.Password)
 	output := runCommand(session, command)
@@ -112,7 +127,11 @@ func ReplayTraffic() bool {
 	if session == nil {
 		return false
 	}
-	command := getSudoCommand("disk2n -i enp216s0f0 -f /tmp/test.pcap", config.Password)
+	replayPcapFile := fmt.Sprintf("%s/test.pcap", config.Directory)
+	command := getSudoCommand(
+		fmt.Sprintf("disk2n -i enp216s0f0 -f %s", replayPcapFile),
+		config.Password,
+	)
 	output := runCommand(session, command)
 	err := session.Close()
 	if err != nil {
@@ -127,7 +146,7 @@ func ListRecordings() *string {
 	if session == nil {
 		return nil
 	}
-	output := runCommand(session, fmt.Sprintf("ls %s", config.Directory))
+	output := runCommand(session, fmt.Sprintf("ls %s", getRecordingDirectory(config)))
 	err := session.Close()
 	if err != nil {
 		fmt.Println(err)
@@ -140,7 +159,7 @@ func DownloadRecordingOutput(name string) string {
 	config := LoadNboxConfig()
 	client := createScpClient(config)
 	remoteFilePath := fmt.Sprintf("%s/%s.pcap", config.Directory, name)
-	clientFileName := "/tmp/download.pcap"
+	clientFileName := "download.pcap"
 	clientFile, _ := os.Create(clientFileName)
 	err := client.CopyFromRemote(context.Background(), clientFile, remoteFilePath)
 	if err != nil {

@@ -3,5 +3,5 @@
   "username": "nbox",
   "password": "nbox",
   "interface": "nt:0",
-  "directory": "/opt/n2disk/recordings"
+  "directory": "/opt/n2disk"
 }

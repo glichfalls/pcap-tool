@@ -70,6 +70,7 @@ func setupRouter() *gin.Engine {
 				context.JSON(http.StatusBadRequest, gin.H{
 					"error": err,
 				})
+				return
 			}
 			utils.UpdateFilter(data)
 			context.JSON(http.StatusOK, gin.H{
@@ -83,11 +84,13 @@ func setupRouter() *gin.Engine {
 
 		apiGroup.POST("/recording/start", func(context *gin.Context) {
 			var options utils.RecordingOptions
-			if err := context.BindJSON(&options); err != nil {
+			if err := context.ShouldBindJSON(&options); err != nil {
 				context.JSON(http.StatusBadRequest, gin.H{
 					"error": "failed to parse options",
 				})
+				return
 			}
+			fmt.Println(options)
 			if utils.StartRecording(options) {
 				context.JSON(http.StatusOK, gin.H{
 					"status": "ok",
@@ -117,6 +120,7 @@ func setupRouter() *gin.Engine {
 				context.JSON(http.StatusInternalServerError, gin.H{
 					"status": "failed",
 				})
+				return
 			}
 			context.JSON(http.StatusOK, list)
 		})
@@ -125,7 +129,7 @@ func setupRouter() *gin.Engine {
 			filename := utils.DownloadRecordingOutput(context.Param("name"))
 			context.Header("Content-Description", "File Transfer")
 			context.Header("Content-Transfer-Encoding", "binary")
-			context.Header("Content-Disposition", "attachment; filename="+filename)
+			context.Header("Content-Disposition", "attachment; filename=download.pcap")
 			context.Header("Content-Type", "application/vnd.tcpdump.pcap")
 			context.File(filename)
 		})

@@ -70,8 +70,8 @@ const statsTime = computed(() => {
 checkHeartbeat();
 checkFilterStats();
 
-const heartbeatInterval = setInterval(checkHeartbeat, 10_000);
-const filterStatsInterval = setInterval(checkFilterStats, 2000);
+const heartbeatInterval = setInterval(checkHeartbeat, 5000);
+const filterStatsInterval = setInterval(checkFilterStats, 5000);
 
 onBeforeUnmount(() => {
   clearInterval(heartbeatInterval);

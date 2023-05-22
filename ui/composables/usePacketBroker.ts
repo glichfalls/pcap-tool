@@ -53,31 +53,35 @@ export const usePacketBroker = () => {
 
   const updateFilter = async (data: any) => {
     try {
-      const payload: PacketBrokerFilter = {
-        mode: 'PASS_BY_CRITERIA',
-      };
       if (data.ips || data.ports || data.vlan) {
-        payload.criteria = {
-          logical_operation: 'AND',
+        const payload: PacketBrokerFilter = {
+          mode: 'PASS_BY_CRITERIA',
+          criteria: {
+            logical_operation: 'AND',
+          },
         };
-        if (data.ips) {
+        if (payload.criteria && data.ips) {
           const ips: string[] = data.ips.split(',').map((ip: string) => ip.trim());
           payload.criteria.ipv4_dst = [{
             addr: ips,
           }];
         }
-        if (data.ports) {
+        if (payload.criteria && data.ports) {
           payload.criteria.layer4_dst_port = [{
             port: data.ports,
           }];
         }
-        if (data.vlan) {
+        if (payload.criteria && data.vlan) {
           payload.criteria.vlan = [{
             vlan_id: data.vlan
           }];
         }
+        await put('/api/filter', payload);
+      } else {
+        await put('/api/filter', {
+          mode: 'PASS_ALL',
+        });
       }
-      await put('/api/filter', payload);
       await reloadFilter();
     } catch (err) {
       console.error(err);

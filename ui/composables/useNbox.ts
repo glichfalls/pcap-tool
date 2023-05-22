@@ -15,9 +15,9 @@ export const useNbox = () => {
 
   const startRecording = async (data: any) => {
     try {
-      const response = await post('/api/recording/start', {
-        duration: data?.duration || null,
-        size: data?.size || null,
+      await post('/api/recording/start', {
+        duration: Number(data?.duration || 0),
+        size: Number(data?.size || 0),
       });
       return true;
     } catch (error) {
