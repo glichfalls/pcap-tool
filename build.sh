@@ -4,7 +4,8 @@ cd ui
 npx nuxi generate
 
 cd ../src
-cp -r ../ui/.output/public/* public
+rm -rf public
+cp -r ../ui/.output/public .
 
 go build -o ../tool/main
 

@@ -6,7 +6,7 @@
       label="Ports"
       validation="ports"
       validation-visibility="live"
-      help="List of Ports (comma separated)"
+      help="List of Ports (comma separated, ranges - separated)"
     />
     <form-kit
       type="text"
@@ -14,7 +14,7 @@
       label="VLAN"
       validation="vlan"
       validation-visibility="live"
-      help="List of VLAN ids (comma separated)"
+      help="List of VLAN ids (comma separated, ranges - separated)"
     />
     <form-kit
       type="textarea"
@@ -23,7 +23,7 @@
       label="IP Addresses"
       validation="ips"
       validation-visibility="live"
-      help="List of IP v4 Addresses or CIDR (comma separated)"
+      help="List of IP v4 Addresses or CIDR notations (comma separated, ranges - separated)"
     />
   </form-kit>
 </template>

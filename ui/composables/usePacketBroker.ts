@@ -1,9 +1,12 @@
 export type PacketBrokerFilter = {
-  name: string;
-  description: string;
+  name?: string;
+  description?: string;
   mode: string;
   criteria?: {
     logical_operation: string;
+    ipv4_dst?: {
+      addr: string[];
+    }[],
     layer4_dst_port?: {
       port: string;
     }[];
@@ -16,6 +19,7 @@ export type PacketBrokerFilter = {
 export type Filter = {
   name: string;
   description: string;
+  ips: string;
   ports: string;
   vlan: string;
 };
@@ -32,6 +36,7 @@ export const usePacketBroker = () => {
       filter.value = {
         name: data?.name || '',
         description: data?.description || '',
+        ips: data?.criteria?.ipv4_dst?.[0]?.addr?.join(',') || '',
         ports: data?.criteria?.layer4_dst_port?.[0]?.port || '',
         vlan: data?.criteria?.vlan?.[0]?.vlan_id || '',
       };
@@ -39,6 +44,7 @@ export const usePacketBroker = () => {
       filter.value = {
         name: '',
         description: '',
+        ips: '',
         ports: '',
         vlan: '',
       };
@@ -48,29 +54,27 @@ export const usePacketBroker = () => {
   const updateFilter = async (data: any) => {
     try {
       const payload: PacketBrokerFilter = {
-        name: 'F2',
-        description: 'Test',
         mode: 'PASS_BY_CRITERIA',
       };
-      if (data.ports || data.vlan) {
+      if (data.ips || data.ports || data.vlan) {
         payload.criteria = {
           logical_operation: 'AND',
         };
+        if (data.ips) {
+          const ips: string[] = data.ips.split(',').map((ip: string) => ip.trim());
+          payload.criteria.ipv4_dst = [{
+            addr: ips,
+          }];
+        }
         if (data.ports) {
-          payload.criteria = {
-            ...payload.criteria,
-            layer4_dst_port: [{
-              port: data.ports,
-            }],
-          };
+          payload.criteria.layer4_dst_port = [{
+            port: data.ports,
+          }];
         }
         if (data.vlan) {
-          payload.criteria = {
-            ...payload.criteria,
-            vlan: [{
-              vlan_id: data.vlan
-            }],
-          };
+          payload.criteria.vlan = [{
+            vlan_id: data.vlan
+          }];
         }
       }
       await put('/api/filter', payload);

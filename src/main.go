@@ -18,7 +18,7 @@ var frontend embed.FS
 func setupRouter() *gin.Engine {
 
 	// setup router
-	gin.SetMode(gin.ReleaseMode)
+	//gin.SetMode(gin.ReleaseMode)
 	router := gin.Default()
 
 	// allow CORS
@@ -65,13 +65,16 @@ func setupRouter() *gin.Engine {
 		})
 
 		apiGroup.PUT("/filter", func(context *gin.Context) {
-			var filters utils.Filters
-			if err := context.BindJSON(&filters); err != nil {
-				context.JSON(400, gin.H{
-					"error": "failed to parse body",
+			data, err := context.GetRawData()
+			if err != nil {
+				context.JSON(http.StatusBadRequest, gin.H{
+					"error": err,
 				})
 			}
-			utils.UpdateFilter(filters)
+			utils.UpdateFilter(data)
+			context.JSON(http.StatusOK, gin.H{
+				"status": "ok",
+			})
 		})
 
 		apiGroup.POST("/measure", func(context *gin.Context) {
@@ -79,12 +82,18 @@ func setupRouter() *gin.Engine {
 		})
 
 		apiGroup.POST("/recording/start", func(context *gin.Context) {
-			if utils.StartRecording() {
-				context.JSON(200, gin.H{
+			var options utils.RecordingOptions
+			if err := context.BindJSON(&options); err != nil {
+				context.JSON(http.StatusBadRequest, gin.H{
+					"error": "failed to parse options",
+				})
+			}
+			if utils.StartRecording(options) {
+				context.JSON(http.StatusOK, gin.H{
 					"status": "ok",
 				})
 			} else {
-				context.JSON(500, gin.H{
+				context.JSON(http.StatusInternalServerError, gin.H{
 					"status": "failed",
 				})
 			}
@@ -92,14 +101,33 @@ func setupRouter() *gin.Engine {
 
 		apiGroup.POST("/recording/replay", func(context *gin.Context) {
 			if utils.ReplayTraffic() {
-				context.JSON(200, gin.H{
+				context.JSON(http.StatusOK, gin.H{
 					"status": "ok",
 				})
 			} else {
-				context.JSON(500, gin.H{
+				context.JSON(http.StatusInternalServerError, gin.H{
 					"status": "failed",
 				})
 			}
+		})
+
+		apiGroup.GET("/recording/list", func(context *gin.Context) {
+			list := utils.ListRecordings()
+			if list == nil {
+				context.JSON(http.StatusInternalServerError, gin.H{
+					"status": "failed",
+				})
+			}
+			context.JSON(http.StatusOK, list)
+		})
+
+		apiGroup.GET("/recording/download/:name", func(context *gin.Context) {
+			filename := utils.DownloadRecordingOutput(context.Param("name"))
+			context.Header("Content-Description", "File Transfer")
+			context.Header("Content-Transfer-Encoding", "binary")
+			context.Header("Content-Disposition", "attachment; filename="+filename)
+			context.Header("Content-Type", "application/vnd.tcpdump.pcap")
+			context.File(filename)
 		})
 	}
 

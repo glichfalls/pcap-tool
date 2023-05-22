@@ -12,6 +12,7 @@ type NboxConfig struct {
 	Username  string `json:"username"`
 	Password  string `json:"password"`
 	Interface string `json:"interface"`
+	Directory string `json:"directory"`
 }
 
 type BrokerConfig struct {

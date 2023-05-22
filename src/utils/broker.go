@@ -10,21 +10,6 @@ import (
 	"net/http"
 )
 
-type Filters struct {
-	Filters []Filter
-}
-
-type Filter struct {
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Type        string   `json:"type"`
-	Direction   string   `json:"direction"`
-	IpProtocol  string   `json:"Ipprotocol"`
-	Address     []string `json:"address"`
-	Port        []int8   `json:"port"`
-	Vlan        []string `json:"vlan"`
-}
-
 func basicAuth(username, password string) string {
 	auth := username + ":" + password
 	return base64.StdEncoding.EncodeToString([]byte(auth))
@@ -77,10 +62,12 @@ func putJson(uri string, body io.Reader) interface{} {
 	return sendRequest(createRequest("PUT", uri, body))
 }
 
-func UpdateFilter(filters Filters) interface{} {
+func UpdateFilter(data []byte) interface{} {
 	config := LoadPacketBrokerConfig()
-	data, _ := json.Marshal(filters)
-	return putJson(fmt.Sprintf("api/filters/%s?allowTemporaryDataLoss=true", config.Filter), bytes.NewBuffer(data))
+	return putJson(
+		fmt.Sprintf("api/filters/%s?allowTemporaryDataLoss=true", config.Filter),
+		bytes.NewBuffer(data),
+	)
 }
 
 func GetFilter() interface{} {
