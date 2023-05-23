@@ -1,4 +1,0 @@
-nohup sh -c 'n2disk -i nt:0 -o /opt/n2disk/recordings -u nbox -P /opt/n2disk -L -t 10 >/dev/null 2>&1 & echo $!' | tail -n 1
-
-
-[sudo] password for nbox: 31194

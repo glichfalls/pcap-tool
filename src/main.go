@@ -18,7 +18,7 @@ var frontend embed.FS
 func setupRouter() *gin.Engine {
 
 	// setup router
-	//gin.SetMode(gin.ReleaseMode)
+	gin.SetMode(gin.ReleaseMode) // delete this line to enable debug output
 	router := gin.Default()
 
 	// allow CORS
@@ -107,10 +107,10 @@ func setupRouter() *gin.Engine {
 
 		apiGroup.POST("/recording/:pid/stop", func(context *gin.Context) {
 			pid := context.Param("pid")
-			if output, err := utils.StopRecording(pid); err == nil {
+			if err := utils.StopRecording(pid); err == nil {
 				context.JSON(http.StatusOK, gin.H{
 					"status":  "ok",
-					"message": output,
+					"message": "success",
 				})
 			} else {
 				context.JSON(http.StatusInternalServerError, gin.H{

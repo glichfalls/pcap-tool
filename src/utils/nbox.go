@@ -123,12 +123,11 @@ func StartRecording(options RecordingOptions) (int, error) {
 
 	// Construct the command to start the recording
 	command := fmt.Sprintf(
-		"nohup sh -c 'echo %s | sudo -S n2disk -i %s -o %s -u %s -P %s -L",
+		"nohup sh -c 'echo %s | sudo -S n2disk -i %s -o %s -u %s -L",
 		config.Password,
 		config.Interface,
 		getRecordingDirectory(config),
 		config.Username,
-		config.Directory,
 	)
 
 	if options.Size == 0 || options.Duration == 0 {
@@ -139,7 +138,7 @@ func StartRecording(options RecordingOptions) (int, error) {
 		command = fmt.Sprintf("%s -t %d", command, options.Duration)
 	}
 
-	// Append the command to echo the PID without the password prompt
+	// output to /dev/null, run in background, echo the PID
 	command = fmt.Sprintf("%s >/dev/null 2>&1 & echo $!'", command)
 
 	output, err := runCombinedOutputCommand(session, command)
@@ -155,29 +154,26 @@ func StartRecording(options RecordingOptions) (int, error) {
 	}
 
 	// Adjust the PID by incrementing it by 1
+	// Because somehow the returned PID is always 1 lower, cant find out why
 	pid++
 
 	return pid, nil
 }
 
-func StopRecording(pid string) (string, error) {
+func StopRecording(pid string) error {
 	config := LoadNboxConfig()
 	session, err := createSession(config)
 	if err != nil {
-		return "", err
+		return fmt.Errorf("failed to dial: %v", err)
 	}
-	command := getSudoCommand(fmt.Sprintf("kill -s 2 %s", pid), config.Password)
-	output, err := runCombinedOutputCommand(session, command)
+	defer session.Close()
+
+	command := fmt.Sprintf("kill -s 2 %s; echo $?", pid)
+	_, err = runCombinedOutputCommand(session, getSudoCommand(command, config.Password))
 	if err != nil {
-		fmt.Println(err)
-		return "", err
+		return fmt.Errorf("failed to stop recording: %v", err)
 	}
-	err = session.Close()
-	if err != nil {
-		fmt.Println(err)
-		return "", err
-	}
-	return output, nil
+	return nil
 }
 
 func ReplayTraffic() (string, error) {
