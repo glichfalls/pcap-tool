@@ -68,7 +68,8 @@ func setupRouter() *gin.Engine {
 			data, err := context.GetRawData()
 			if err != nil {
 				context.JSON(http.StatusBadRequest, gin.H{
-					"error": err,
+					"status":  "failed",
+					"message": err,
 				})
 				return
 			}
@@ -86,39 +87,74 @@ func setupRouter() *gin.Engine {
 			var options utils.RecordingOptions
 			if err := context.ShouldBindJSON(&options); err != nil {
 				context.JSON(http.StatusBadRequest, gin.H{
-					"error": "failed to parse options",
+					"status":  "failed",
+					"message": err.Error(),
 				})
 				return
 			}
-			fmt.Println(options)
-			if utils.StartRecording(options) {
+			if pid, err := utils.StartRecording(options); err == nil {
 				context.JSON(http.StatusOK, gin.H{
-					"status": "ok",
+					"status":  "ok",
+					"message": pid,
 				})
 			} else {
 				context.JSON(http.StatusInternalServerError, gin.H{
-					"status": "failed",
+					"status":  "failed",
+					"message": err.Error(),
+				})
+			}
+		})
+
+		apiGroup.POST("/recording/:pid/stop", func(context *gin.Context) {
+			pid := context.Param("pid")
+			if output, err := utils.StopRecording(pid); err == nil {
+				context.JSON(http.StatusOK, gin.H{
+					"status":  "ok",
+					"message": output,
+				})
+			} else {
+				context.JSON(http.StatusInternalServerError, gin.H{
+					"status":  "failed",
+					"message": err.Error(),
+				})
+			}
+		})
+
+		apiGroup.GET("/recording/:pid/running", func(context *gin.Context) {
+			pid := context.Param("pid")
+			if output, err := utils.IsRecordingRunning(pid); err == nil {
+				context.JSON(http.StatusOK, gin.H{
+					"status":  "ok",
+					"message": output,
+				})
+			} else {
+				context.JSON(http.StatusInternalServerError, gin.H{
+					"status":  "failed",
+					"message": err.Error(),
 				})
 			}
 		})
 
 		apiGroup.POST("/recording/replay", func(context *gin.Context) {
-			if utils.ReplayTraffic() {
+			if output, err := utils.ReplayTraffic(); err == nil {
 				context.JSON(http.StatusOK, gin.H{
-					"status": "ok",
+					"status":  "ok",
+					"message": output,
 				})
 			} else {
 				context.JSON(http.StatusInternalServerError, gin.H{
-					"status": "failed",
+					"status":  "failed",
+					"message": err.Error(),
 				})
 			}
 		})
 
 		apiGroup.GET("/recording/list", func(context *gin.Context) {
-			list := utils.ListRecordings()
-			if list == nil {
+			list, err := utils.ListRecordings()
+			if err != nil {
 				context.JSON(http.StatusInternalServerError, gin.H{
-					"status": "failed",
+					"status":  "failed",
+					"message": err.Error(),
 				})
 				return
 			}
@@ -126,7 +162,14 @@ func setupRouter() *gin.Engine {
 		})
 
 		apiGroup.GET("/recording/download/:name", func(context *gin.Context) {
-			filename := utils.DownloadRecordingOutput(context.Param("name"))
+			filename, err := utils.DownloadRecordingOutput(context.Param("name"))
+			if err != nil {
+				context.JSON(http.StatusInternalServerError, gin.H{
+					"status":  "failed",
+					"message": err.Error(),
+				})
+				return
+			}
 			context.Header("Content-Description", "File Transfer")
 			context.Header("Content-Transfer-Encoding", "binary")
 			context.Header("Content-Disposition", "attachment; filename=download.pcap")

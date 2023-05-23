@@ -1,5 +1,10 @@
 import { useRuntimeConfig } from '#app';
 
+export type ApiResponse = {
+  status: string;
+  message: string;
+};
+
 export const useHttp = () => {
   const { public: { apiUrl } } = useRuntimeConfig();
 
@@ -15,7 +20,7 @@ export const useHttp = () => {
     });
   };
 
-  const post = (url: string, params = {}) => {
+  const post = <T>(url: string, params = {}): Promise<T> => {
     return $fetch(url, {
       method: 'POST',
       baseURL: apiUrl,
@@ -24,7 +29,7 @@ export const useHttp = () => {
     });
   };
 
-  const put = (url: string, params = {}) => {
+  const put = <T>(url: string, params = {}): Promise<T> => {
     return $fetch(url, {
       method: 'PUT',
       baseURL: apiUrl,

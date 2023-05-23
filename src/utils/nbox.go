@@ -7,10 +7,12 @@ import (
 	"github.com/bramvdbogaerde/go-scp"
 	"golang.org/x/crypto/ssh"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 )
 
-func sshConnect(config *NboxConfig) *ssh.Client {
+func sshConnect(config *NboxConfig) (*ssh.Client, error) {
 	sshConfig := &ssh.ClientConfig{
 		User: config.Username,
 		Auth: []ssh.AuthMethod{
@@ -22,28 +24,31 @@ func sshConnect(config *NboxConfig) *ssh.Client {
 	fmt.Println("Creating ssh connection")
 	con, err := ssh.Dial("tcp", config.Host, sshConfig)
 	if err != nil {
-		fmt.Println(fmt.Sprintf("failed to connect: %s", err))
-		return nil
+		fmt.Println(fmt.Errorf("failed to connect: %v", err))
+		return nil, err
 	}
-	return con
+	return con, nil
 }
 
-func createSession(config *NboxConfig) *ssh.Session {
-	connection := sshConnect(config)
-	if connection == nil {
-		return nil
+func createSession(config *NboxConfig) (*ssh.Session, error) {
+	connection, err := sshConnect(config)
+	if err != nil {
+		return nil, err
 	}
 	fmt.Println("Creating ssh session")
 	session, err := connection.NewSession()
 	if err != nil {
-		fmt.Println(fmt.Sprintf("failed to create session: %s", err))
-		return nil
+		fmt.Println(fmt.Errorf("failed to create session: %v", err))
+		return nil, err
 	}
-	return session
+	return session, nil
 }
 
-func createScpClient(config *NboxConfig) *scp.Client {
-	connection := sshConnect(config)
+func createScpClient(config *NboxConfig) (*scp.Client, error) {
+	connection, err := sshConnect(config)
+	if err != nil {
+		return nil, err
+	}
 	fmt.Println("Creating scp client")
 	client, err := scp.NewClientBySSH(connection)
 	if err != nil {
@@ -52,20 +57,29 @@ func createScpClient(config *NboxConfig) *scp.Client {
 	err = client.Connect()
 	if err != nil {
 		fmt.Println("Couldn't establish a connection to the remote server ", err)
-		return nil
+		return nil, err
 	}
-	return &client
+	return &client, nil
 }
 
-func runCommand(session *ssh.Session, command string) *bytes.Buffer {
+func runCommand(session *ssh.Session, command string) (*bytes.Buffer, error) {
 	var output bytes.Buffer
 	session.Stdout = &output
-	fmt.Println("Running command over ssh")
 	if err := session.Start(command); err != nil {
 		fmt.Println(fmt.Sprintf("failed to run command over ssh session: %s", err))
-		return nil
+		return nil, err
+	} else {
+		return &output, nil
 	}
-	return &output
+}
+
+func runCombinedOutputCommand(session *ssh.Session, command string) (string, error) {
+	if out, err := session.CombinedOutput(command); err != nil {
+		fmt.Println(fmt.Sprintf("failed to run command over ssh session: %s", err))
+		return "", err
+	} else {
+		return string(out), nil
+	}
 }
 
 func getSudoCommand(command string, password string) string {
@@ -81,16 +95,36 @@ type RecordingOptions struct {
 	Size     int `json:"size"`
 }
 
-func StartRecording(options RecordingOptions) bool {
+func IsRecordingRunning(pid string) (bool, error) {
 	config := LoadNboxConfig()
-	session := createSession(config)
-	if session == nil {
-		return false
+	session, err := createSession(config)
+	if err != nil {
+		return false, fmt.Errorf("failed to dial: %v", err)
 	}
-	// https://www.ntop.org/guides/n2disk/usage.html
-	// https://github.com/ntop/ntopng/blob/d65bb0c1438a393bca532286a6270bbaba028c50/scripts/lua/modules/recording_utils.lua#L1015
+	defer session.Close()
+	command := getSudoCommand(fmt.Sprintf("kill -0 %s 2>/dev/null; echo $?", pid), config.Password)
+	out, err := runCombinedOutputCommand(session, command)
+	if err != nil {
+		fmt.Println(err)
+		return false, fmt.Errorf("failed to check process status: %v", err)
+	}
+	err = session.Close()
+	exitCode := out
+	return exitCode == "0\n", nil
+}
+
+func StartRecording(options RecordingOptions) (int, error) {
+	config := LoadNboxConfig()
+	session, err := createSession(config)
+	if err != nil {
+		return 0, fmt.Errorf("failed to dial: %v", err)
+	}
+	defer session.Close()
+
+	// Construct the command to start the recording
 	command := fmt.Sprintf(
-		"nohup n2disk -i %s -o %s -u %s -P %s -L",
+		"nohup sh -c 'echo %s | sudo -S n2disk -i %s -o %s -u %s -P %s -L",
+		config.Password,
 		config.Interface,
 		getRecordingDirectory(config),
 		config.Username,
@@ -98,72 +132,114 @@ func StartRecording(options RecordingOptions) bool {
 	)
 
 	if options.Size == 0 || options.Duration == 0 {
-		// if both are 0, run n2disk for 10 seconds
 		command = fmt.Sprintf("%s -t %d", command, 10)
 	} else if options.Size != 0 {
-		// [--max-file-len|-p] <len> | Max pcap file length (MBytes).
 		command = fmt.Sprintf("%s -p %d", command, options.Size)
 	} else if options.Duration != 0 {
-		// [--max-file-duration|-t] <secs> | Max pcap file duration (sec).
 		command = fmt.Sprintf("%s -t %d", command, options.Duration)
 	}
-	// https://serverfault.com/a/36436
-	// < /dev/null > /tmp/n2disk.log 2>&1 &
-	// chat gpt says: >/dev/null 2>&1 &
-	command = fmt.Sprintf("%s >/dev/null 2>&1 &", command)
-	fmt.Println(command)
-	command = getSudoCommand(command, config.Password)
-	output := runCommand(session, command)
-	err := session.Close()
+
+	// Append the command to echo the PID without the password prompt
+	command = fmt.Sprintf("%s >/dev/null 2>&1 & echo $!'", command)
+
+	output, err := runCombinedOutputCommand(session, command)
 	if err != nil {
-		fmt.Println(err)
+		return 0, fmt.Errorf("failed to run command: %v", err)
 	}
-	return output != nil
+
+	// Extract the PID from the output
+	pidStr := strings.TrimSpace(output)
+	pid, err := strconv.Atoi(pidStr)
+	if err != nil {
+		return 0, fmt.Errorf("failed to parse PID: %v", err)
+	}
+
+	// Adjust the PID by incrementing it by 1
+	pid++
+
+	return pid, nil
 }
 
-func ReplayTraffic() bool {
+func StopRecording(pid string) (string, error) {
 	config := LoadNboxConfig()
-	session := createSession(config)
-	if session == nil {
-		return false
+	session, err := createSession(config)
+	if err != nil {
+		return "", err
+	}
+	command := getSudoCommand(fmt.Sprintf("kill -s 2 %s", pid), config.Password)
+	output, err := runCombinedOutputCommand(session, command)
+	if err != nil {
+		fmt.Println(err)
+		return "", err
+	}
+	err = session.Close()
+	if err != nil {
+		fmt.Println(err)
+		return "", err
+	}
+	return output, nil
+}
+
+func ReplayTraffic() (string, error) {
+	config := LoadNboxConfig()
+	session, err := createSession(config)
+	if err != nil {
+		return "", err
 	}
 	replayPcapFile := fmt.Sprintf("%s/test.pcap", config.Directory)
 	command := getSudoCommand(
 		fmt.Sprintf("disk2n -i enp216s0f0 -f %s", replayPcapFile),
 		config.Password,
 	)
-	output := runCommand(session, command)
-	err := session.Close()
+	output, err := runCombinedOutputCommand(session, command)
 	if err != nil {
 		fmt.Println(err)
+		return "", err
 	}
-	return output != nil
-}
-
-func ListRecordings() *string {
-	config := LoadNboxConfig()
-	session := createSession(config)
-	if session == nil {
-		return nil
-	}
-	output := runCommand(session, fmt.Sprintf("ls %s", getRecordingDirectory(config)))
-	err := session.Close()
+	err = session.Close()
 	if err != nil {
 		fmt.Println(err)
+		return "", err
 	}
-	list := output.String()
-	return &list
+	return output, nil
 }
 
-func DownloadRecordingOutput(name string) string {
+func ListRecordings() (string, error) {
 	config := LoadNboxConfig()
-	client := createScpClient(config)
+	session, err := createSession(config)
+	if err != nil {
+		return "", err
+	}
+	output, err := runCommand(session, fmt.Sprintf("ls %s", getRecordingDirectory(config)))
+	if err != nil {
+		fmt.Println(err)
+		return "", err
+	}
+	err = session.Close()
+	if err != nil {
+		fmt.Println(err)
+		return "", err
+	}
+	return output.String(), nil
+}
+
+func DownloadRecordingOutput(name string) (string, error) {
+	config := LoadNboxConfig()
+	client, err := createScpClient(config)
+	if err != nil {
+		return "", err
+	}
 	remoteFilePath := fmt.Sprintf("%s/%s.pcap", config.Directory, name)
 	clientFileName := "download.pcap"
-	clientFile, _ := os.Create(clientFileName)
-	err := client.CopyFromRemote(context.Background(), clientFile, remoteFilePath)
+	clientFile, err := os.Create(clientFileName)
+	if err != nil {
+		fmt.Println(err)
+		return "", err
+	}
+	err = client.CopyFromRemote(context.Background(), clientFile, remoteFilePath)
 	if err != nil {
 		fmt.Println(fmt.Sprintf("Error while downloading file: %s", err))
+		return "", err
 	}
-	return clientFileName
+	return clientFileName, nil
 }

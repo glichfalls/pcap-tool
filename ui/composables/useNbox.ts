@@ -1,4 +1,4 @@
-import { useHttp } from '~/composables/useHttp';
+import { ApiResponse, useHttp } from '~/composables/useHttp';
 
 
 export const useNbox = () => {
@@ -13,15 +13,16 @@ export const useNbox = () => {
     }
   }
 
-  const startRecording = async (data: any) => {
+  const startRecording = async (data: any): Promise<string | null> => {
     try {
-      await post('/api/recording/start', {
+      const response = await post<ApiResponse>('/api/recording/start', {
         duration: Number(data?.duration || 0),
         size: Number(data?.size || 0),
       });
-      return true;
+      return response.message;
     } catch (error) {
       console.error(error);
+      return null;
     }
   };
 
@@ -29,8 +30,14 @@ export const useNbox = () => {
     return await post('/api/traffic/generate');
   };
 
-  const stopRecording = () => {
-
+  const stopRecording = async (pid: string) => {
+    try {
+      const response = await post<ApiResponse>(`/api/recording/${pid}/stop`);
+      return response.message;
+    } catch (error) {
+      console.error(error);
+      return null;
+    }
   };
 
   return {

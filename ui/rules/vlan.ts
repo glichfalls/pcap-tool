@@ -4,6 +4,9 @@ const vlan = (node: FormKitNode): boolean => {
   if (node.value === '') {
     return true;
   }
+  if (node.value === '*') {
+    return true;
+  }
   if (validate(node.value)) {
     return true;
   }
