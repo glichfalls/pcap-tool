@@ -1,5 +1,7 @@
 # Development
 
+Edit Filter Criteria of ixia vision e100 via REST API and start / stop recording of traffic on a nbox with n2disk. 
+
 - Backend is written in go with the gin web framework
 - Frontend is a nuxt 3 app (vue)
 
